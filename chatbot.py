@@ -5,6 +5,7 @@ from telegram.ext import (Updater, CommandHandler, MessageHandler, CallbackQuery
 import ssl
 import random
 import mysql.connector
+import requests
 
 
 from pytube import YouTube
@@ -20,7 +21,9 @@ ssl._create_default_https_context = ssl._create_stdlib_context
    
 global bot
 bot = telebot.TeleBot('6972742316:AAGfE5-aYPEoQN4SF1J5mgaqgm5oi9AQl0Q')
-   
+global_review = "" 
+global_url = ""  
+global_desc = ""  
 
 def main():
     # Load your token and create an Updater for your Bot
@@ -48,6 +51,7 @@ def main():
     dispatcher.add_handler(CommandHandler("hello", hello))
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("start", start_command))
+    dispatcher.add_handler(CommandHandler("view", view_theme))
     dispatcher.add_handler(CommandHandler("review", writeReview_callback))
     dispatcher.add_handler(CallbackQueryHandler(message_handler))
     # To start the bot:
@@ -83,9 +87,15 @@ def start_command(update: Update, context: CallbackContext) -> None:
         #no_answer = types.InlineKeyboardButton('no correct answer', callback_data= 'no_answer')
         #markup.add(iron, cotton, same, no_answer)
         #bot.send_message(update.effective_chat.id,' Welcome to CC chatbot? \n Please select the below function', reply_markup=markup)
-	# 建立 InlineKeyboard
+	#InlineKeyboard
         keyboard_1 = InlineKeyboardMarkup([
             [
+              InlineKeyboardButton("View Hong Kong Photo", callback_data="view_hongkong")
+             ],
+	     [
+              InlineKeyboardButton("View Other Photo", callback_data="view_other")
+             ],
+                [
               InlineKeyboardButton("View Cooking Video", callback_data="view_cooking")
              ], [
                  InlineKeyboardButton("Read TV Show Review", callback_data="read_review")
@@ -103,9 +113,23 @@ def message_handler(update: Update, context: CallbackContext):
     global bot
     if update.callback_query.data == 'read_review':
         readview_callback(update, context)
+
+
+
     elif update.callback_query.data == 'write_review':
-	#readview_callback(update, context)
-        bot.send_message(update.effective_chat.id,'Usage: /review <TV Show>, <Your name>, <Rating[1-5]>, <Your Review> \n\nexample: /review Sherlock, Olivia, 4, Brilliant detective series')
+       bot.send_message(update.effective_chat.id,'Usage: /review <TV Show>, <Your name>, <Rating[1-5]>, <Your Review> \n\nexample: /review Sherlock, Olivia, 4, Brilliant detective series')
+    elif update.callback_query.data == 'translate_english':
+        translate_chatgpt(update, context,'EN')
+    elif update.callback_query.data == 'translate_chinese':
+        translate_chatgpt(update, context,'TC')
+    elif update.callback_query.data == 'translate_english_photo':
+        translate_photo(update, context,'EN')
+    elif update.callback_query.data == 'translate_chinese_photo':
+        translate_photo(update, context,'TC')
+    elif update.callback_query.data == 'view_hongkong':
+        view_hongKong(update, context)
+    elif update.callback_query.data == 'view_other':
+        bot.send_message(update.effective_chat.id,'Usage: /view <Target theme> \n\nexample: /view hiking in Hong kong')    
     elif update.callback_query.data == 'view_cooking':
 	# List of YouTube URLs
         youtube_urls = [
@@ -126,7 +150,7 @@ def message_handler(update: Update, context: CallbackContext):
 
 def readview_callback(update, context):
     
-
+    global global_review
     # Establish a connection to the MySQL database
     cnx = mysql.connector.connect(
         user="shun",
@@ -178,8 +202,17 @@ def readview_callback(update, context):
     # Close the cursor and the database connection
     cursor.close()
     cnx.close()
+
    
-    bot.send_message(update.effective_chat.id,'The TV reviews as below:\n\n'+ review_data_string, parse_mode='HTML')
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    translate_english = types.InlineKeyboardButton('Translate to English', callback_data= 'translate_english')
+    translate_chinese = types.InlineKeyboardButton('Translate to Chinese', callback_data= 'translate_chinese')
+    markup.add(translate_english, translate_chinese)
+    global_review= review_data_string
+    bot.send_message(update.effective_chat.id,'The TV reviews as below:\n\n'+ review_data_string ,parse_mode='HTML', reply_markup=markup)
+   
+    #bot.send_message(update.effective_chat.id,'The TV reviews as below:\n\n'+ review_data_string, parse_mode='HTML', reply_markup= reply_markup)
+    #update.message.reply_text(text='The TV reviews as below:\n\n'+ review_data_string', parse_mode='HTML', reply_markup=keyboard_1)
     
 def writeReview_callback(update, context):
     try:
@@ -234,22 +267,100 @@ def writeReview_callback(update, context):
     except (IndexError, ValueError): 
         update.message.reply_text('Usage: /review <TV Show>, <Your name>, <Rating[1-5]>, <Your Review> \n\nexample: /review Sherlock, Olivia, 4, Brilliant detective series')
 
+def view_theme(update, context):
+    global global_desc
+    global global_url
+    try:
+        if len(context.args) > 0:
+            result = ' '.join(context.args)
+            # Make a request to the Unsplash API
+            response = requests.get('https://api.unsplash.com/search/photos/?client_id=qRtKMXiMZ16w0zncez6BHFzV0UXDQ4bnyFllVJ2H_7g&per_page=1&query='+ result)
+            data = response.json()
+
+            # Retrieve the small photo URL from the API response
+            photo_url = data['results'][0]['urls']['small']
+
+            # Load the image file from the retrieved URL
+            photo_response = requests.get(photo_url)
+            photo = photo_response.content
+            global chatgpt
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            translate_english = types.InlineKeyboardButton('Translate to English', callback_data= 'translate_english_photo')
+            translate_chinese = types.InlineKeyboardButton('Translate to Chinese', callback_data= 'translate_chinese_photo')
+            markup.add(translate_english, translate_chinese)
+            reply_message = chatgpt.submit('Please use 50 words to descript what is '+ result)
+            global_desc = reply_message
+            global_url = photo_url
+            # Send the image with a caption
+            bot.send_photo(chat_id=update.effective_chat.id, photo=photo, caption= reply_message, reply_markup= markup)
+        else:
+            update.message.reply_text('Usage: /view <Target theme> \n\nexample: /view hiking in Hong kong')
+    except (IndexError, ValueError): 
+        update.message.reply_text('Usage: /view <Target theme> \n\nexample: /view hiking in Hong kong')
+ 
 
 
+def view_hongKong(update, context):
+    global global_desc
+    global global_url
 
-@bot.callback_query_handler(func=lambda call:True)
-def answer (callback):
-        if callback.message:
-             if callback.data == 'answer_iron':
-                 bot.send_message (callback.message.chat.id, 'I Congratulations! You are the winner1!')
-             elif callback.data == 'answer_cotton':
-                 bot.send_message (callback.message.chat.id, 'I Congratulations! You are the winner2!')
-             elif callback.data == 'answer_same':
-                 bot.send_message (callback.message.chat.id, 'I Congratulations! You are the winner3!')
-             else:
-                 bot.send_message (callback.message.chat.id,'I Congratulations! You are the winner4!')
+    # Make a request to the Unsplash API
+    response = requests.get('https://api.unsplash.com/search/photos/?client_id=qRtKMXiMZ16w0zncez6BHFzV0UXDQ4bnyFllVJ2H_7g&per_page=1&query=hongkong')
+    data = response.json()
+
+    # Retrieve the small photo URL from the API response
+    photo_url = data['results'][0]['urls']['small']
+
+    # Load the image file from the retrieved URL
+    photo_response = requests.get(photo_url)
+    photo = photo_response.content
+    global chatgpt
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    translate_english = types.InlineKeyboardButton('Translate to English', callback_data= 'translate_english_photo')
+    translate_chinese = types.InlineKeyboardButton('Translate to Chinese', callback_data= 'translate_chinese_photo')
+    markup.add(translate_english, translate_chinese)
+    reply_message = chatgpt.submit('Please use 30 words to descript what is Hong Kong')
+    global_desc = reply_message
+    global_url = photo_url
+
+    # Send the image with a caption
+    bot.send_photo(chat_id=update.effective_chat.id, photo=photo, caption= reply_message, reply_markup= markup)
+def translate_photo(update, context, lang):
+    global chatgpt
+    global global_desc
+    global global_url
+    
+    if lang  == 'EN':
+        reply_message = chatgpt.submit('Please translate to English,' + global_desc)
+    else: 
+        reply_message = chatgpt.submit('Please translate to Chinese,' + global_desc)
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    translate_english = types.InlineKeyboardButton('Translate to English only and not add other command', callback_data= 'translate_english_photo')
+    translate_chinese = types.InlineKeyboardButton('Translate to Chinese only and not add other command', callback_data= 'translate_chinese_photo')
+    markup.add(translate_english, translate_chinese)
+    photo_response = requests.get(global_url)
+    photo = photo_response.content
+    bot.send_photo(chat_id=update.effective_chat.id, photo=photo, caption= reply_message, reply_markup= markup)
+
+
+def translate_chatgpt(update, context, lang):
+    global chatgpt
+    global global_review
+    
+    if lang  == 'EN':
+        reply_message = chatgpt.submit('Please translate to English,' + global_review)
+    else: 
+        reply_message = chatgpt.submit('Please translate to Chinese,' + global_review)
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    translate_english = types.InlineKeyboardButton('Translate to English only and not add other command', callback_data= 'translate_english')
+    translate_chinese = types.InlineKeyboardButton('Translate to Chinese only and not add other command', callback_data= 'translate_chinese')
+    markup.add(translate_english, translate_chinese)
+    bot.send_message(chat_id=update.effective_chat.id, text=reply_message, reply_markup=markup)
+
 def equiped_chatgpt(update, context):
     global chatgpt
+    print(update.message.text) 
     reply_message = chatgpt.submit(update.message.text)
     logging.info("Update: " + str(update))
     logging.info("context: " + str(context))
