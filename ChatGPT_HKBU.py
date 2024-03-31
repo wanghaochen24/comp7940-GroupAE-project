@@ -1,18 +1,17 @@
-import configparser
 import requests
-class HKBU_ChatGPT():
-    def __init__(self,config_path='./config.ini'):
-        if type(config_path) == str:
-            self.config = configparser.ConfigParser()
-            self.config.read(config_path)
-        elif type(config_path) == configparser.ConfigParser:
-            self.config = config_path
+import os
 
-    def submit(self,message):
+BASICURL = os.environ['BASICURL']
+MODELNAME = os.environ['MODELNAME']
+APIVERSION = os.environ['APIVERSION']
+ACCESS_TOKEN = os.environ['ACCESS_TOKEN']
+
+
+class HKBU_ChatGPT():
+    def submit(update, message):   
         conversation = [{"role": "user", "content": message}]
-        url = (self.config['CHATGPT']['BASICURL']) + "/deployments/" + (self.config['CHATGPT']['MODELNAME']) + "/chat/completions/?api-version=" + (self.config['CHATGPT']['APIVERSION'])
-        headers = { 'Content-Type': 'application/json',
-        'api-key': (self.config['CHATGPT']['ACCESS_TOKEN']) }
+        url = (BASICURL) + "/deployments/" + (MODELNAME) + "/chat/completions/?api-version=" + (APIVERSION)
+        headers = { 'Content-Type': 'application/json', 'api-key': (ACCESS_TOKEN) }
         payload = { 'messages': conversation }
         response = requests.post(url, json=payload, headers=headers)
         if response.status_code == 200:
@@ -20,6 +19,7 @@ class HKBU_ChatGPT():
             return data['choices'][0]['message']['content']
         else:
             return 'Error:', response
+
 
 if __name__ == '__main__':
     ChatGPT_test = HKBU_ChatGPT()
