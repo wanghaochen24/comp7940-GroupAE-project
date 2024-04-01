@@ -29,4 +29,4 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: 23452315/groupae_bot:latest
+          tags: 23452315/group_ae_chatbot:latest

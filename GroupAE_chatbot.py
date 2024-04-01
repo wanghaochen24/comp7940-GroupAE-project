@@ -271,8 +271,8 @@ def translate_photo(update, context, lang, str_command):
         global_url = global_photo_data[Key]['url']
         reply_message = chatgpt.submit('Please translate to Chinese only and not add any commant and if content is Chinese just return Chinese content only,' + global_desc)
     markup = types.InlineKeyboardMarkup(row_width=2)
-    translate_english = types.InlineKeyboardButton('Translate to English'+ global_desc, callback_data= 'translate_english_photo_'+ Key)
-    translate_chinese = types.InlineKeyboardButton('Translate to Chinese'+ global_desc, callback_data= 'translate_chinese_photo_'+ Key)
+    translate_english = types.InlineKeyboardButton('Translate to English', callback_data= 'translate_english_photo_'+ Key)
+    translate_chinese = types.InlineKeyboardButton('Translate to Chinese', callback_data= 'translate_chinese_photo_'+ Key)
     markup.add(translate_english, translate_chinese)
     photo_response = requests.get(global_url)
     photo = photo_response.content
@@ -299,8 +299,8 @@ def translate_chatgpt(update, context,  lang):
     else: 
         reply_message = chatgpt.submit('Please translate to Chinese only and not add any commant and if content is Chinese just return Chinese content only,' + global_review)
     markup = types.InlineKeyboardMarkup(row_width=2)
-    translate_english = types.InlineKeyboardButton('Translate to English only and not add other command', callback_data= 'translate_english')
-    translate_chinese = types.InlineKeyboardButton('Translate to Chinese only and not add other command', callback_data= 'translate_chinese')
+    translate_english = types.InlineKeyboardButton('Translate to English', callback_data= 'translate_english')
+    translate_chinese = types.InlineKeyboardButton('Translate to Chinese', callback_data= 'translate_chinese')
     markup.add(translate_english, translate_chinese)
     bot.send_message(chat_id=update.effective_chat.id, text=reply_message, reply_markup=markup)
 
